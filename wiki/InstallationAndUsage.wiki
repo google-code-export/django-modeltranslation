@@ -31,8 +31,6 @@ The modeltranslation application can be used to translate existing models to an 
   * Unlimited number of target languages
   * Add translations without changing existing models
   * Django admin support
-  * ?Supports inherited models
-
 
 = Installation =
 
