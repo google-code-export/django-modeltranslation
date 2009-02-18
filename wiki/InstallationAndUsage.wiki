@@ -78,7 +78,7 @@ Note that the `gettext` lambda function is not a feature of the modeltranslation
 
 *settings.TRANSLATION_REGISTRY*
 
-In order to be able to import the project's `translation.py` registration file the `TRANSLATION_REGISTRY` must be set the value `<PROJECT_MODULE>.translation`. E.g. if your project is locateed in folder named `myproject` the `TRANSLATION_REGISTRY` must be set like this::
+In order to be able to import the project's `translation.py` registration file the `TRANSLATION_REGISTRY` must be set to the value `<PROJECT_MODULE>.translation`. E.g. if your project is located in a folder named `myproject` the `TRANSLATION_REGISTRY` must be set like this::
 
 {{{
     TRANSLATION_REGISTRY = "myproject.translation"
