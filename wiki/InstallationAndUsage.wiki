@@ -10,14 +10,15 @@ The modeltranslation application can be used to translate existing models to an 
     * Configure the project's `settings.py`
     * Registering models and their fields for translation
     * Changes automatically applied to the model class
-    * The `update_translation_fields` command
   * Accessing translated and translation fields
     * Rules for translated field access
     * Examples for translated field access
   * Django admin backend integration
     * Tweaks applied to the admin
     * TranslationAdmin in combination with other admin classes
+  * The `update_translation_fields` command
   * Caveats
+    * Accessing translated fields outside views
   * Related projects
     * django-multilingual
     * django-multilingual-model
@@ -31,6 +32,8 @@ The modeltranslation application can be used to translate existing models to an 
   * Unlimited number of target languages
   * Add translations without changing existing models
   * Django admin support
+  * ?Supports inherited models
+
 
 = Installation =
 
@@ -39,6 +42,7 @@ To install the application please follow these steps. Each step is described in 
   # Add the `modeltranslation` app to the `INSTALLED_APPS` variable of your project's `settings.py`.
   # Configure your languages in the `settings.py`.
   # Create a `translation.py` in your project directory and register `TranslationOptions` for every model you want to translate.
+  # Configure the `TRANSLATION_REGISTRY` variable in your `settings.py`.
   # Sync the database using `manage.py syncdb` (note that this only applies if the models registered in the `translations.py` did not have been synced to the database before. If they did - read further down what to do in that case.
 
 
@@ -76,15 +80,15 @@ LANGUAGES = (
 
 Note that the `gettext` lambda function is not a feature of the modeltranslation app, but rather required for Django to be able to (statically) translate the verbose names of the languages using the standard `i18n` solution.
 
-*settings.TRANSLATION_REGISTRY*
-
-In order to be able to import the project's `translation.py` registration file the `TRANSLATION_REGISTRY` must be set to the value `<PROJECT_MODULE>.translation`. E.g. if your project is located in a folder named `myproject` the `TRANSLATION_REGISTRY` must be set like this::
+*settings.TRANSLATION_REGISTRY*In order to be able to import the project's `translation.py` registration file the `TRANSLATION_REGISTRY` must be set to a value in the form `<PROJECT_MODULE>.translation`. E.g. if your project is located in a folder named `myproject` the `TRANSLATION_REGISTRY` must be set like this:
 
 {{{
-    TRANSLATION_REGISTRY = "myproject.translation"
+TRANSLATION_REGISTRY = "myproject.translation"
 }}}
 
 == Registering models and their fields for translation ==
+
+The `modeltranslation` app can translate `CharField` and `TextField`based fields of any model class. For each model to translate a translation option class containg the fields to translate is registered with the `modeltranslation` app.
 
 Registering models and their fields for translation requires the following steps:
 
@@ -96,6 +100,8 @@ Registering models and their fields for translation requires the following steps
 The `modeltranslation` application reads the `translation.py` file in your project directory thereby triggering the registration of the translation options found in the file.
 
 A translation option is a class that declares which fields of a model to translate. The class must derive from `modeltranslation.ModelTranslation`and it must provide a `fields` attribute storing the list of fieldnames. The option class must be registered with the `modeltranslation.translator.translator` instance.
+
+*Note*: In contrast to the Django admin application which looks for `admin.py` files in the project *and* application directories, the modeltranslation app looks only for one `translation.py` file in the project directory.
 
 To illustrate this let's have a look at a simple example using a `News` model. The news in this example only contains a `title` and a `text` field. Instead of a news, this could be any Django model class:
 
@@ -119,9 +125,11 @@ translator.register(News, NewsTranslationOptions)
 
 Note that this does not require to change the `News` model in any way, it's only imported. The `NewsTranslationOptions` derives from `TranslationOptions` and provides the `fields` attribute. Finally the model and it's translation options are registered at the `translator` object.
 
+At this point you are mostly done and the model classes registered for translation will have been added some auto-magical fields. The next section explains how things are working under the hood.
+
 == Changes automatically applied to the model class ==
 
-At this point you are mostly done and the model classes registered for translation will have been added some auto-magical fields. An SQL dump of the News app example will look like this:
+After registering the `News` model for transaltion an SQL dump of the News app will look like this:
 
 {{{
 $ ./manage.py sqlall news
@@ -145,29 +153,11 @@ Note the `title_de`, `title_en`, `text_de` and `text_en` fields which are not de
 
 The name of these additional fields is build using the original name of the translated field and appending one of the language identifiers found in the `settings.LANGUAGES`.
 
-As these fields are added to the registered model class as fully valid Django model fields, they will appear in the db schema for the model although it has not been specified on the model explicitly. In case you are translating an existing project and your models have already been synced to the database you will need to alter the tables in your database and add these additional translation fields.
+As these fields are added to the registered model class as fully valid Django model fields, they will appear in the db schema for the model although it has not been specified on the model explicitly.
 
 If you are starting a fresh project and have considered your translation needs in the beginning then simply sync your database and you are ready to use the translated models.
 
-If you have added the translations to an existing project you have to edit your database schema. Note that all added fields are declared `null=True` not matter if the original field is required. In other words - all translations are optional. To populate the default translation fields added by the `modeltranslation` application you can use the `update_translation_fields`command below. See the `The update_translation_fields command` section for more infos on this.
-
-== The `update_translation_fields` command ==
-
-In case the modeltranslation app was installed on an existing project and you have specified to translate fields of models which are already synced to the database, you have to update your database schema manually.
-
-Unfortunately the translation fields on the model will be empty then, and your templates will show the translated value of the fields (see Rule 1 below) which will be empty in this case. To correctly initialize the default translation field you can use the `update_translation_fields` command:
-
-{{{
-manage.py update_translation_fields
-}}}
-
-Taken the News example from above this command will copy the value from the news object's `title` field to the default translation field `title_de`. It only does so if the default translation field is empty otherwise nothing is copied.
-
-By default all translated models (as specified in the project's `translation.py` will be populated with initial data. If you only want to populate a specific model you can use the command with an additional app name (the same as on e.g. the `sqlall` command):
-
-{{{
-manage.py update_translation_fields news
-}}}
+In case you are translating an existing project and your models have already been synced to the database you will need to alter the tables in your database and add these additional translation fields. Note that all added fields are declared `null=True` not matter if the original field is required. In other words - all translations are optional. To populate the default translation fields added by the `modeltranslation` application you can use the `update_translation_fields` command below. See the `The update_translation_fields command` section for more infos on this.
 
 = Accessing translated and translation fields =
 
@@ -286,6 +276,22 @@ class MyTranslatedNewsAdmin(NewsAdmin, TranslationAdmin):
 
 This implements the `formfield_for_dbfield` such that both functionalities will be executed. The first line calls the superclass method which in this case will be the one of `NewsAdmin` because it is the first class inherited from. The `TranslationAdmin` capsulates all it's functionality in the `patch_translation_field(db_field, field, **kwargs)` method and the `formfield_for_dbfield` implementation of the `TranslationAdmin` class simply calls it. You can copy this behaviour by calling it from a custom admin class and that's done in the example above. After that the `field` is fully patched for translation and finally returned.
 
+= The `update_translation_fields` command =
+
+In case the modeltranslation app was installed on an existing project and you have specified to translate fields of models which are already synced to the database, you have to update your database schema manually.
+
+Unfortunately the newly added translation fields on the model will be empty then, and your templates will show the translated value of the fields (see Rule 1 below) which will be empty in this case. To correctly initialize the default translation field you can use the `update_translation_fields`command:
+
+{{{
+manage.py update_translation_fields
+}}}
+
+Taken the News example from above this command will copy the value from the news object's `title` field to the default translation field `title_de`. It only does so if the default translation field is empty otherwise nothing is copied.
+
+*Note*: The command will examine your `settings.LANGUAGES` variable and the first language declared there will be used as the default language.
+
+All translated models (as specified in the project's `translation.py` will be populated with initial data.
+
 = Caveats =
 
 Consider the following example (assuming the default lanuage is `de`):
@@ -308,6 +314,18 @@ Now assign the title, which triggers the descriptor and the default translation 
 'foo'
 >>>
 }}}
+
+== Accessing translated fields outside views ==
+
+Since the `modeltranslation` mechanism relies on the current language as it is returned by the `get_language` function care must be taken when accessing translated fields outside a view function.
+
+Within a view function the language is set by Django based on a flexible model described at [http://docs.djangoproject.com/en/dev/topics/i18n/#id2 How Django discovers language preference] which is normally used only by Django's static translation system.
+
+When a translated field is accessed in a view function or in a template, it uses the `django.utils.translation.get_language` function to determine the current language and return the appropriate value.
+
+Outside a view (or a template), i.e. in normal Python code, a call to the `get_language` function still returns a value, but it might not what you expect. Since no request is involved, Django's machinery for discovering the user's preferred language is not activated. *todo: explain more*
+
+The unittests in `tests.py` use the `django.utils.translation.trans_real`functions to activate and deactive a specific language outside a view function.
 
 = Related projects =
 
