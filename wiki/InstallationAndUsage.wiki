@@ -32,7 +32,7 @@ The modeltranslation application can be used to translate existing models to an 
   * Unlimited number of target languages
   * Add translations without changing existing models
   * Django admin support
-  * ?Supports inherited models
+  * Supports inherited models
 
 
 = Installation =
@@ -277,6 +277,66 @@ class MyTranslatedNewsAdmin(NewsAdmin, TranslationAdmin):
 }}}
 
 This implements the `formfield_for_dbfield` such that both functionalities will be executed. The first line calls the superclass method which in this case will be the one of `NewsAdmin` because it is the first class inherited from. The `TranslationAdmin` capsulates all it's functionality in the `patch_translation_field(db_field, field, **kwargs)` method and the `formfield_for_dbfield` implementation of the `TranslationAdmin` class simply calls it. You can copy this behaviour by calling it from a custom admin class and that's done in the example above. After that the `field` is fully patched for translation and finally returned.
+
+== Inlines ==
+
+*New in development version*
+Support for tabular and stacked inlines, common and generic ones.
+
+A translated inline must derive from one of the following classes:
+
+ * `modeltranslation.admin.TranslationTabularInline`
+ * `modeltranslation.admin.TranslationStackedInline`
+ * `modeltranslation.admin.TranslationGenericTabularInline`
+ * `modeltranslation.admin.TranslationGenericStackedInline`
+
+Just like `TranslationAdmin` these classes implement a special method
+`def formfield_for_dbfield(self, db_field, **kwargs)` which does all the
+patching.
+
+For our example we assume that there is new model called Image. It's
+definition is left out for simplicity. Our News model inlines the new model:
+
+{{{
+from django.contrib import admin
+from modeltranslation.admin import TranslationTabularInline
+
+class ImageInline(TranslationTabularInline):
+    model = Image
+
+class NewsAdmin(admin.ModelAdmin):
+    list_display = ('title',)
+    inlines = [ImageInline,]
+
+admin.site.register(News, NewsAdmin)
+}}}
+
+*Note:* In this example only the Image model is registered in translation.py.
+It's not a requirement that `NewsAdmin` derives from `TranslationAdmin` in
+order to inline a model which is registered for translation.
+
+In this more complex example we assume that the News and Image models are
+registered in translation.py. The News model has an own custom admin class and
+the Image model an own generic stacked inline class. It uses the technique
+described in [InstallationAndUsage#TranslationAdmin_in_combination_with_other_admin_classes TranslationAdmin in combination with other admin classes].:
+
+{{{
+from django.contrib import admin
+from modeltranslation.admin import TranslationAdmin, TranslationGenericStackedInline
+
+class TranslatedImageInline(ImageInline, TranslationGenericStackedInline):
+    model = Image
+
+class TranslatedNewsAdmin(NewsAdmin, TranslationAdmin):
+    def formfield_for_dbfield(self, db_field, **kwargs):
+        field = super(TranslatedNewsAdmin, self).formfield_for_dbfield(db_field, **kwargs)
+        self.patch_translation_field(db_field, field, **kwargs)
+        return field
+
+    inlines = [TranslatedImageInline,]
+
+admin.site.register(News, NewsAdmin)
+}}}
 
 = The `update_translation_fields` command =
 
