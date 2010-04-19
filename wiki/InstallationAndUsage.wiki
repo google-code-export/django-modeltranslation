@@ -15,7 +15,8 @@ The modeltranslation application can be used to translate existing models to an 
     * Examples for translated field access
   * Django admin backend integration
     * Tweaks applied to the admin
-    * TranslationAdmin in combination with other admin classes
+    * !TranslationAdmin in combination with other admin classes
+    * Inlines
   * The `update_translation_fields` command
   * Caveats
     * Accessing translated fields outside views
@@ -245,7 +246,7 @@ The `TranslationAdmin` class does only implement one special method which is `de
   # Checks if the - now removed - original field was required and if so makes the default translation field required instead.
 
 
-== TranslationAdmin in combination with other admin classes ==
+== !TranslationAdmin in combination with other admin classes ==
 
 If there already exists a custom admin class for a translated model and you don't want or can't edit that class directly there is another solution.
 
@@ -280,7 +281,7 @@ This implements the `formfield_for_dbfield` such that both functionalities will 
 
 == Inlines ==
 
-*New in development version*
+*New in development version*:
 Support for tabular and stacked inlines, common and generic ones.
 
 A translated inline must derive from one of the following classes:
