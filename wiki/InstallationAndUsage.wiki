@@ -42,15 +42,11 @@ The modeltranslation application can be used to translate existing models to an 
 
 To install the application please follow these steps. Each step is described in detail in the following sections:
 
-  * Add the `modeltranslation` app to the `INSTALLED_APPS` variable of your project's
-    `settings.py`.
-  * Configure your languages in the `settings.py`.
-  * Create a `translation.py` in your project directory and register `TranslationOptions`
-    for every model you want to translate.
-  * Configure the `TRANSLATION_REGISTRY` variable in your `settings.py`.
-  * Sync the database using `manage.py syncdb` (note that this only applies if the models
-    registered in the `translations.py` did not have been synced to the database before.
-    If they did - read further down what to do in that case.
+  # Add the `modeltranslation` app to the `INSTALLED_APPS` variable of your project's `settings.py`.
+  # Configure your languages in the `settings.py`.
+  # Create a `translation.py` in your project directory and register `TranslationOptions` for every model you want to translate.
+  # Configure the `TRANSLATION_REGISTRY` variable in your `settings.py`.
+  # Sync the database using `manage.py syncdb` (note that this only applies if the models registered in the `translations.py` did not have been synced to the database before. If they did - read further down what to do in that case.
 
 
 == Configure the project's `settings.py` ==
