@@ -1,4 +1,4 @@
-#labels Featured
+#labels Featured,DevelopmentVersion
 Release: _development version_
 
 = Modeltranslation =
