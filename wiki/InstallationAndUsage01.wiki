@@ -1,4 +1,4 @@
-#labels Featured,Release-0.1
+#labels Release-0.1
 Release: 0.1
 
 = Model translation =
