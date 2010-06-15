@@ -1,7 +1,7 @@
-#labels Featured,Release-0.2
+#labels Featured
 Release: 0.2
 
-= Model translation =
+= Modeltranslation =
 
 The modeltranslation application can be used to translate existing models to an arbitrary number of languages without having to change the original model classes. It uses a registration approach (comparable to Django's admin app) to be able to add translations to existing or new projects and is fully integrated into the Django admin backend.
 
@@ -65,7 +65,7 @@ INSTALLED_APPS = (
 )
 }}}
 
-Also make sure that the app can be found on a path contained in your `PYTHONPATH` environment variable.
+*Important:* Also make sure that the app can be found on a path contained in your `PYTHONPATH` environment variable.
 
 *settings.LANGUAGES*
 
