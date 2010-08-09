@@ -45,7 +45,7 @@ To install the application please follow these steps. Each step is described in 
   # Add the `modeltranslation` app to the `INSTALLED_APPS` variable of your project's `settings.py`.
   # Configure your languages in the `settings.py`.
   # Create a `translation.py` in your project directory and register `TranslationOptions` for every model you want to translate.
-  # Configure the `TRANSLATION_REGISTRY` variable in your `settings.py`.
+  # Configure the `MODELTRANSLATION_TRANSLATION_REGISTRY` variable in your `settings.py`.
   # Sync the database using `manage.py syncdb` (note that this only applies if the models registered in the `translations.py` did not have been synced to the database before. If they did - read further down what to do in that case.
 
 
@@ -83,12 +83,17 @@ LANGUAGES = (
 
 Note that the `gettext` lambda function is not a feature of the modeltranslation app, but rather required for Django to be able to (statically) translate the verbose names of the languages using the standard `i18n` solution.
 
-*settings.TRANSLATION_REGISTRY*
+*settings.MODELTRANSLATION_DEFAULT_LANGUAGE*
 
-In order to be able to import the project's `translation.py` registration file the `TRANSLATION_REGISTRY` must be set to a value in the form `<PROJECT_MODULE>.translation`. E.g. if your project is located in a folder named `myproject` the `TRANSLATION_REGISTRY` must be set like this:
+*New in development version*
+To override the default language as described in settings.LANGUAGES, define `MODELTRANSLATION_DEFAULT_LANGUAGE`. Note that the value has to be in settings.LANGUAGES, otherwise an exception will be raised.
+
+*settings.MODELTRANSLATION_TRANSLATION_REGISTRY*
+
+In order to be able to import the project's `translation.py` registration file the `MODELTRANSLATION_TRANSLATION_REGISTRY` must be set to a value in the form `<PROJECT_MODULE>.translation`. E.g. if your project is located in a folder named `myproject` the `MODELTRANSLATION_TRANSLATION_REGISTRY` must be set like this:
 
 {{{
-TRANSLATION_REGISTRY = "myproject.translation"
+MODELTRANSLATION_TRANSLATION_REGISTRY = "myproject.translation"
 }}}
 
 == Registering models and their fields for translation ==
@@ -225,6 +230,10 @@ t = n.title # returns english translation
 
 This feature is implemented using Python descriptors making it happen without the need to touch the original model classes in any way. The descriptor uses the `django.utils.i18n.get_language` function to determine the current language.
 
+== Set a default value ==
+*New in development version*
+TODO
+
 = Django admin backend integration =
 
 In order to be able to edit the translations via the admin backend you need to register a special admin class for the translated models. The admin class must derive from `modeltranslation.admin.TranslationAdmin` which does some funky patching on all your models registered for translation:
@@ -283,7 +292,7 @@ This implements the `formfield_for_dbfield` such that both functionalities will 
 
 == Inlines ==
 
-*New in development version*:
+*New in 0.2*:
 Support for tabular and stacked inlines, common and generic ones.
 
 A translated inline must derive from one of the following classes:
@@ -340,6 +349,26 @@ class TranslatedNewsAdmin(NewsAdmin, TranslationAdmin):
 
 admin.site.register(News, NewsAdmin)
 }}}
+
+== Using tabbed translation fields ==
+*New in development version*
+Modeltranslation supports separation of translation fields via jquery-ui tabs. The proposed way to include it is through the inner `Media` class of a `TranslationAdmin` class like this:
+
+{{{
+class NewsAdmin(TranslationAdmin):
+    class Media:
+        js = (
+          '/static/modeltranslation/js/force_jquery.js',
+          'http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.2/jquery-ui.min.js',
+          '/static/modeltranslation/js/tabbed_translation_fields.js',
+        )
+        css = {
+          'screen': ('/static/modeltranslation/js/tabbed_translation_fields.css',),
+        }
+}}}
+
+The `force_jquery.js` script is necessary when using Django's built-in `django.jQuery` object. This and the static urls used are just an example and might have to be adopted to your setup of serving static files. Standard
+jquery-ui theming can be used to customize the look of tabs, the provided css file is supposed to work well with a default Django admin.
 
 = The `update_translation_fields` command =
 
