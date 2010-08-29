@@ -230,6 +230,18 @@ t = n.title # returns english translation
 
 This feature is implemented using Python descriptors making it happen without the need to touch the original model classes in any way. The descriptor uses the `django.utils.i18n.get_language` function to determine the current language.
 
+== Supported fields ==
+``Modeltranslation`` officially supports CharField and TextField.
+
+*New in development version*
+In most cases subclasses of these fields will work fine, too. Other fields aren't supported and will throw an ``ImproperlyConfigured`` exception.
+
+The list of supported fields can be extended. Just define a tuple of field names in your settings.py like this::
+
+    MODELTRANSLATION_CUSTOM_FIELDS = ('MyField', 'MyOtherField',)
+
+*Note:* This just prevents ``modeltranslation`` from throwing an ``ImproperlyConfigured`` exception. Any non text-like field will most likely fail in one way or another. The feature is considered experimental and might be replaced by a more sophisticated mechanism in future versions.
+
 == Set a default value ==
 *New in development version*
 TODO
@@ -363,7 +375,7 @@ class NewsAdmin(TranslationAdmin):
           '/static/modeltranslation/js/tabbed_translation_fields.js',
         )
         css = {
-          'screen': ('/static/modeltranslation/js/tabbed_translation_fields.css',),
+          'screen': ('/static/modeltranslation/css/tabbed_translation_fields.css',),
         }
 }}}
 
