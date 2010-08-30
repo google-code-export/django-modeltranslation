@@ -3,7 +3,15 @@ Release: _development version_
 
 = Modeltranslation =
 
-The modeltranslation application can be used to translate existing models to an arbitrary number of languages without having to change the original model classes. It uses a registration approach (comparable to Django's admin app) to be able to add translations to existing or new projects and is fully integrated into the Django admin backend.
+The modeltranslation application can be used to translate dynamic content of existing models to an arbitrary number of languages without having to change the original model classes. It uses a registration approach (comparable to Django's admin app) to be able to add translations to existing or new projects and is fully integrated into the Django admin backend.
+
+The advantage of a registration approach is the ability to add translations to models on a per-project basis. You can use the same app in different projects, may they use translations or not, and you never have to touch the original model class.
+
+*Authors*
+
+  * Peter Eschler <[mailto:peschler@googlemail.com peschler@googlemail.com]>
+  * Dirk Eschler <[mailto:eschler@gmail.com eschler@gmail.com]>
+
 
 == Contents ==
 
@@ -15,10 +23,12 @@ The modeltranslation application can be used to translate existing models to an 
   * Accessing translated and translation fields
     * Rules for translated field access
     * Examples for translated field access
+    * Set a default value
   * Django admin backend integration
     * Tweaks applied to the admin
     * !TranslationAdmin in combination with other admin classes
     * Inlines
+    * Using tabbed translation fields
   * The `update_translation_fields` command
   * Caveats
     * Accessing translated fields outside views
@@ -65,7 +75,7 @@ INSTALLED_APPS = (
 )
 }}}
 
-*Important:* Also make sure that the app can be found on a path contained in your `PYTHONPATH` environment variable.
+Also make sure that the app can be found on a path contained in your `PYTHONPATH` environment variable.
 
 *settings.LANGUAGES*
 
@@ -86,6 +96,7 @@ Note that the `gettext` lambda function is not a feature of the modeltranslation
 *settings.MODELTRANSLATION_DEFAULT_LANGUAGE*
 
 *New in development version*
+
 To override the default language as described in settings.LANGUAGES, define `MODELTRANSLATION_DEFAULT_LANGUAGE`. Note that the value has to be in settings.LANGUAGES, otherwise an exception will be raised.
 
 *settings.MODELTRANSLATION_TRANSLATION_REGISTRY*
@@ -96,9 +107,25 @@ In order to be able to import the project's `translation.py` registration file t
 MODELTRANSLATION_TRANSLATION_REGISTRY = "myproject.translation"
 }}}
 
+*settings.MODELTRANSLATION_CUSTOM_FIELDS*
+
+*New in development version*
+
+`Modeltranslation` officially supports `CharField` and `TextField`.
+
+In most cases subclasses of these fields will work fine, too. Other fields aren't supported and will throw an `ImproperlyConfigured` exception.
+
+The list of supported fields can be extended. Just define a tuple of field names in your settings.py like this:
+
+{{{
+MODELTRANSLATION_CUSTOM_FIELDS = ('MyField', 'MyOtherField',)
+}}}
+
+*Note*: This just prevents `modeltranslation` from throwing an `ImproperlyConfigured` exception. Any non text-like field will most likely fail in one way or another. The feature is considered experimental and might be replaced by a more sophisticated mechanism in future versions.
+
 == Registering models and their fields for translation ==
 
-The `modeltranslation` app can translate `CharField` and `TextField`based fields of any model class. For each model to translate a translation option class containg the fields to translate is registered with the `modeltranslation` app.
+The `modeltranslation` app can translate `CharField` and `TextField` based fields of any model class. For each model to translate a translation option class containg the fields to translate is registered with the `modeltranslation` app.
 
 Registering models and their fields for translation requires the following steps:
 
@@ -109,7 +136,7 @@ Registering models and their fields for translation requires the following steps
 
 The `modeltranslation` application reads the `translation.py` file in your project directory thereby triggering the registration of the translation options found in the file.
 
-A translation option is a class that declares which fields of a model to translate. The class must derive from `modeltranslation.ModelTranslation`and it must provide a `fields` attribute storing the list of fieldnames. The option class must be registered with the `modeltranslation.translator.translator` instance.
+A translation option is a class that declares which fields of a model to translate. The class must derive from `modeltranslation.ModelTranslation` and it must provide a `fields` attribute storing the list of fieldnames. The option class must be registered with the `modeltranslation.translator.translator` instance.
 
 *Note*: In contrast to the Django admin application which looks for `admin.py` files in the project *and* application directories, the modeltranslation app looks only for one `translation.py` file in the project directory.
 
@@ -191,7 +218,7 @@ class News(models.Model):
     text_en = models.TextField(null=True, blank=True) # translation field
 }}}
 
-The example above assumes that the default language is `de`, therefore the `title_de` and `text_de` fields are marked as the *default translation fields*. If the default language is `en`, the `title_en` and `text_en`fields would be the *default translation fields*.
+The example above assumes that the default language is `de`, therefore the `title_de` and `text_de` fields are marked as the *default translation fields*. If the default language is `en`, the `title_en` and `text_en` fields would be the *default translation fields*.
 
 == Rules for translated field access ==
 
@@ -230,20 +257,10 @@ t = n.title # returns english translation
 
 This feature is implemented using Python descriptors making it happen without the need to touch the original model classes in any way. The descriptor uses the `django.utils.i18n.get_language` function to determine the current language.
 
-== Supported fields ==
-``Modeltranslation`` officially supports CharField and TextField.
-
-*New in development version*
-In most cases subclasses of these fields will work fine, too. Other fields aren't supported and will throw an ``ImproperlyConfigured`` exception.
-
-The list of supported fields can be extended. Just define a tuple of field names in your settings.py like this::
-
-    MODELTRANSLATION_CUSTOM_FIELDS = ('MyField', 'MyOtherField',)
-
-*Note:* This just prevents ``modeltranslation`` from throwing an ``ImproperlyConfigured`` exception. Any non text-like field will most likely fail in one way or another. The feature is considered experimental and might be replaced by a more sophisticated mechanism in future versions.
-
 == Set a default value ==
+
 *New in development version*
+
 TODO
 
 = Django admin backend integration =
@@ -304,22 +321,21 @@ This implements the `formfield_for_dbfield` such that both functionalities will 
 
 == Inlines ==
 
-*New in 0.2*:
+*New in 0.2*
+
 Support for tabular and stacked inlines, common and generic ones.
 
 A translated inline must derive from one of the following classes:
 
- * `modeltranslation.admin.TranslationTabularInline`
- * `modeltranslation.admin.TranslationStackedInline`
- * `modeltranslation.admin.TranslationGenericTabularInline`
- * `modeltranslation.admin.TranslationGenericStackedInline`
+  * `modeltranslation.admin.TranslationTabularInline`
+  * `modeltranslation.admin.TranslationStackedInline`
+  * `modeltranslation.admin.TranslationGenericTabularInline`
+  * `modeltranslation.admin.TranslationGenericStackedInline`
 
-Just like `TranslationAdmin` these classes implement a special method
-`def formfield_for_dbfield(self, db_field, **kwargs)` which does all the
-patching.
 
-For our example we assume that there is new model called Image. It's
-definition is left out for simplicity. Our News model inlines the new model:
+Just like `TranslationAdmin` these classes implement a special method `def formfield_for_dbfield(self, db_field, **kwargs)` which does all the patching.
+
+For our example we assume that there is new model called Image. It's definition is left out for simplicity. Our News model inlines the new model:
 
 {{{
 from django.contrib import admin
@@ -335,14 +351,9 @@ class NewsAdmin(admin.ModelAdmin):
 admin.site.register(News, NewsAdmin)
 }}}
 
-*Note:* In this example only the Image model is registered in translation.py.
-It's not a requirement that `NewsAdmin` derives from `TranslationAdmin` in
-order to inline a model which is registered for translation.
+*Note*: In this example only the Image model is registered in translation.py. It's not a requirement that `NewsAdmin` derives from `TranslationAdmin` in order to inline a model which is registered for translation.
 
-In this more complex example we assume that the News and Image models are
-registered in translation.py. The News model has an own custom admin class and
-the Image model an own generic stacked inline class. It uses the technique
-described in [InstallationAndUsage#TranslationAdmin_in_combination_with_other_admin_classes TranslationAdmin in combination with other admin classes].:
+In this more complex example we assume that the News and Image models are registered in translation.py. The News model has an own custom admin class and the Image model an own generic stacked inline class. It uses the technique described in [#translationadmin-in-combination-with-other-admin-classes TranslationAdmin in combination with other admin classes].:
 
 {{{
 from django.contrib import admin
@@ -363,30 +374,31 @@ admin.site.register(News, NewsAdmin)
 }}}
 
 == Using tabbed translation fields ==
+
 *New in development version*
+
 Modeltranslation supports separation of translation fields via jquery-ui tabs. The proposed way to include it is through the inner `Media` class of a `TranslationAdmin` class like this:
 
 {{{
 class NewsAdmin(TranslationAdmin):
     class Media:
         js = (
-          '/static/modeltranslation/js/force_jquery.js',
-          'http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.2/jquery-ui.min.js',
-          '/static/modeltranslation/js/tabbed_translation_fields.js',
+            '/static/modeltranslation/js/force_jquery.js',
+            'http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.2/jquery-ui.min.js',
+            '/static/modeltranslation/js/tabbed_translation_fields.js',
         )
         css = {
-          'screen': ('/static/modeltranslation/css/tabbed_translation_fields.css',),
+            'screen': ('/static/modeltranslation/css/tabbed_translation_fields.css',),
         }
 }}}
 
-The `force_jquery.js` script is necessary when using Django's built-in `django.jQuery` object. This and the static urls used are just an example and might have to be adopted to your setup of serving static files. Standard
-jquery-ui theming can be used to customize the look of tabs, the provided css file is supposed to work well with a default Django admin.
+The `force_jquery.js` script is necessary when using Django's built-in `django.jQuery` object. This and the static urls used are just an example and might have to be adopted to your setup of serving static files. Standard jquery-ui theming can be used to customize the look of tabs, the provided css file is supposed to work well with a default Django admin.
 
 = The `update_translation_fields` command =
 
 In case the modeltranslation app was installed on an existing project and you have specified to translate fields of models which are already synced to the database, you have to update your database schema manually.
 
-Unfortunately the newly added translation fields on the model will be empty then, and your templates will show the translated value of the fields (see Rule 1 below) which will be empty in this case. To correctly initialize the default translation field you can use the `update_translation_fields`command:
+Unfortunately the newly added translation fields on the model will be empty then, and your templates will show the translated value of the fields (see Rule 1 below) which will be empty in this case. To correctly initialize the default translation field you can use the `update_translation_fields` command:
 
 {{{
 manage.py update_translation_fields
@@ -431,7 +443,7 @@ When a translated field is accessed in a view function or in a template, it uses
 
 Outside a view (or a template), i.e. in normal Python code, a call to the `get_language` function still returns a value, but it might not what you expect. Since no request is involved, Django's machinery for discovering the user's preferred language is not activated. *todo: explain more*
 
-The unittests in `tests.py` use the `django.utils.translation.trans_real`functions to activate and deactive a specific language outside a view function.
+The unittests in `tests.py` use the `django.utils.translation.trans_real` functions to activate and deactive a specific language outside a view function.
 
 = Related projects =
 
