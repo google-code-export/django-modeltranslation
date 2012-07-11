@@ -58,7 +58,6 @@ To install the application please follow these steps. Each step is described in 
   # Configure your `LANGUAGES` in `settings.py`.
   # Create a `translation.py` in your app directory and register `TranslationOptions` for every model you want to translate.
   # Configure the `MODELTRANSLATION_TRANSLATION_FILES` variable in your `settings.py`.
-  # Add `translator.autoregister()` to your project's `urls.py`.
   # Sync the database using `manage.py syncdb` (note that this only applies if the models registered in the `translations.py` did not have been synced to the database before. If they did - read further down what to do in that case.
 
 
@@ -169,23 +168,6 @@ translator.register(News, NewsTranslationOptions)
 Note that this does not require to change the `News` model in any way, it's only imported. The `NewsTranslationOptions` derives from `TranslationOptions` and provides the `fields` attribute. Finally the model and it's translation options are registered at the `translator` object.
 
 At this point you are mostly done and the model classes registered for translation will have been added some auto-magical fields. The next section explains how things are working under the hood.
-
-=== Autoregister translation files ===
-
-Similiar to Django's admin, modeltranslation provides a mechanism to automatically register your translation files. It has to be hooked into your project's urls.py.
-
-{{{
-from modeltranslation import translator
-translator.autodiscover()
-
-# ...
-# Must be in in front of:
-
-from django.contrib import admin
-admin.autodiscover()
-}}}
-
-*Note*: This step is basically optional if you prefer to register your models programmatically.
 
 == Changes automatically applied to the model class ==
 
