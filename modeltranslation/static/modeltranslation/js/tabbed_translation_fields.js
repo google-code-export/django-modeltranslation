@@ -3,14 +3,7 @@
 var google, django, gettext;
 
 (function () {
-    var jQuery = jQuery || $ || django.jQuery;
-
-    /* Add a new selector to jQuery that excludes parent items which match a
-       given selector */
-    jQuery.expr[':'].parents = function(a, i, m) {
-        return jQuery(a).parents(m[3]).length < 1;
-    };
-
+    var jQuery = django.jQuery || jQuery || $;
     jQuery(function ($) {
         function getGroupedTranslationFields() {
             /** Returns a grouped set of all text based model translation fields.
@@ -28,29 +21,10 @@ var google, django, gettext;
              *   }
              * }
              */
-            var translation_fields = $('.modeltranslation').filter(
-                'input[type=text]:visible, textarea:visible').filter(
-                ':parents(.tabular)'), // exclude tabular inlines
+            var translation_fields = $('.modeltranslation').filter('input[type=text]:visible, textarea:visible'),
               grouped_translations = {};
 
             translation_fields.each(function (i, el) {
-                /*
-                // FIXME: Fails if there's an inline which has the same field name as
-                //        the edited object.
-
-                // Extract fieldname and original language code from class attribute
-                var css_lang_suffix = 'modeltranslation-field-';
-                var name = '';
-                var lang = '';
-                $.each($(el).attr('class').split(' '), function(j, cls) {
-                    if (cls.substring(0, css_lang_suffix.length) === css_lang_suffix) {
-                        var v = cls.substring(css_lang_suffix.length,
-                                              cls.length).split('__');
-                        name = v[0];
-                        lang = v[1];
-                    }
-                });
-                */
                 var name = $(el).attr('name').split('_'),
                   lang = name.pop();
                 name = name.join('_');
@@ -59,6 +33,7 @@ var google, django, gettext;
                 }
                 grouped_translations[name][lang] = el;
             });
+
             return grouped_translations;
         }
 
