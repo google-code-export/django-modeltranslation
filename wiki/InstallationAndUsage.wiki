@@ -19,7 +19,6 @@ The advantage of a registration approach is the ability to add translations to m
   * Installation
     * Configure the project's `settings.py`
     * Registering models and their fields for translation
-      * Autoregister translation files
     * Changes automatically applied to the model class
   * Accessing translated and translation fields
     * Rules for translated field access
@@ -120,7 +119,11 @@ In order to be able to import the `translation.py` registration files of your ap
 
 `Modeltranslation` officially supports `CharField` and `TextField`.
 
-In most cases subclasses of these fields will work fine, too. Other fields aren't supported and will throw an `ImproperlyConfigured` exception.
+*New in 0.4*
+
+Support for `FileField` and `ImageField`.
+
+In most cases subclasses of the supported fields will work fine, too. Other fields aren't supported and will throw an `ImproperlyConfigured` exception.
 
 The list of supported fields can be extended. Just define a tuple of field names in your settings.py like this:
 
@@ -171,7 +174,7 @@ At this point you are mostly done and the model classes registered for translati
 
 == Changes automatically applied to the model class ==
 
-After registering the `News` model for transaltion an SQL dump of the News app will look like this:
+After registering the `News` model for translation an SQL dump of the News app will look like this:
 
 {{{
 $ ./manage.py sqlall news
@@ -437,7 +440,7 @@ All translated models (as specified in the project's `translation.py` will be po
 
 = Caveats =
 
-Consider the following example (assuming the default lanuage is `de`):
+Consider the following example (assuming the default language is `de`):
 
 {{{
 >>> n = News.objects.create(title="foo")
