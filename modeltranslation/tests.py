@@ -1,14 +1,7 @@
 # -*- coding: utf-8 -*-
-"""
-Tests have to be run with modeltranslation.tests.settings:
-./manage.py test --settings=modeltranslation.tests.settings modeltranslation
-
-TODO: Merge autoregister tests from django-modeltranslation-wrapper.
-"""
-from django import forms
 from django.conf import settings
-from django.contrib.admin.sites import AdminSite
 from django.contrib.auth.models import User
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.test import TestCase
@@ -17,16 +10,10 @@ from django.utils.translation import trans_real
 from django.utils.translation import ugettext_lazy
 
 from modeltranslation import translator
-from modeltranslation.admin import (TranslationAdmin,
-                                    TranslationStackedInline)
-from modeltranslation.tests.settings import DEFAULT_LANGUAGE
+from modeltranslation.settings import *
 
-# None of the following tests really depend on the content of the request,
-# so we'll just pass in None.
-request = None
+# TODO: Tests for TranslationAdmin, RelatedTranslationField and subclasses
 
-# Override LANGUAGES setting
-# FIXME: This works for ModeltranslationTest but not for TranslationAdminTest
 settings.LANGUAGES = (('de', 'Deutsch'),
                       ('en', 'English'))
 
@@ -40,10 +27,11 @@ class TestModel(models.Model):
     text = models.TextField(blank=True, null=True)
     url = models.URLField(verify_exists=False, blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
+    xml = models.XMLField(blank=True, null=True)
 
 
 class TestTranslationOptions(translator.TranslationOptions):
-    fields = ('title', 'text', 'url', 'email',)
+    fields = ('title', 'text', 'url', 'email', 'xml',)
 
 translator.translator._registry = {}
 translator.translator.register(TestModel, TestTranslationOptions)
@@ -54,10 +42,11 @@ class TestModelWithFallback(models.Model):
     text = models.TextField(blank=True, null=True)
     url = models.URLField(verify_exists=False, blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
+    xml = models.XMLField(blank=True, null=True)
 
 
 class TestTranslationOptionsWithFallback(translator.TranslationOptions):
-    fields = ('title', 'text', 'url', 'email',)
+    fields = ('title', 'text', 'url', 'email', 'xml',)
     fallback_values = ""
 
 translator.translator.register(TestModelWithFallback,
@@ -69,10 +58,11 @@ class TestModelWithFallback2(models.Model):
     text = models.TextField(blank=True, null=True)
     url = models.URLField(verify_exists=False, blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
+    xml = models.XMLField(blank=True, null=True)
 
 
 class TestTranslationOptionsWithFallback2(translator.TranslationOptions):
-    fields = ('title', 'text', 'url', 'email',)
+    fields = ('title', 'text', 'url', 'email', 'xml',)
     fallback_values = {'text': ugettext_lazy('Sorry, translation is not '
                                              'available.')}
 
@@ -81,10 +71,10 @@ translator.translator.register(TestModelWithFallback2,
 
 
 class ModeltranslationTestBase(TestCase):
-    urls = 'modeltranslation.tests.urls'
+    urls = 'modeltranslation.testurls'
 
     def setUp(self):
-        trans_real.activate('de')
+        trans_real.activate("de")
 
     def tearDown(self):
         trans_real.deactivate()
@@ -131,16 +121,19 @@ class ModeltranslationTest(ModeltranslationTestBase):
         self.failUnless('email' in field_names)
         self.failUnless('email_de' in field_names)
         self.failUnless('email_en' in field_names)
+        self.failUnless('xml' in field_names)
+        self.failUnless('xml_de' in field_names)
+        self.failUnless('xml_en' in field_names)
         inst.delete()
 
     def test_verbose_name(self):
         inst = TestModel.objects.create(title="Testtitle", text="Testtext")
-        self.assertEquals(unicode(
-            inst._meta.get_field('title_de').verbose_name), u'title [de]')
+        self.assertEquals(\
+        unicode(inst._meta.get_field('title_de').verbose_name), u'title [de]')
         inst.delete()
 
     def test_set_translation(self):
-        self.failUnlessEqual(get_language(), 'de')
+        self.failUnlessEqual(get_language(), "de")
         # First create an instance of the test model to play with
         title1_de = "title de"
         title1_en = "title en"
@@ -215,9 +208,8 @@ class ModeltranslationTest(ModeltranslationTestBase):
         n = TestModelWithFallback2.objects.get(title=title1_de)
         trans_real.activate("en")
         self.failUnlessEqual(n.title, title1_de)
-        self.failUnlessEqual(
-            n.text,
-            TestTranslationOptionsWithFallback2.fallback_values['text'])
+        self.failUnlessEqual(n.text,\
+        TestTranslationOptionsWithFallback2.fallback_values['text'])
 
 
 class ModeltranslationTestRule1(ModeltranslationTestBase):
@@ -228,12 +220,14 @@ class ModeltranslationTestRule1(ModeltranslationTestBase):
     def _test_field(self, field_name, value_de, value_en, deactivate=True):
         field_name_de = '%s_de' % field_name
         field_name_en = '%s_en' % field_name
-        params = {'title_de': 'title de', 'title_en': 'title en',
-                  field_name_de: value_de, field_name_en: value_en}
+        params = {'title_de': 'title de',
+                  'title_en': 'title en'}
+        params[field_name_de] = value_de
+        params[field_name_en] = value_en
 
         n = TestModel.objects.create(**params)
-        # Language is set to 'de' at this point
-        self.failUnlessEqual(get_language(), 'de')
+        # Language is set to "de" at this point
+        self.failUnlessEqual(get_language(), "de")
         self.failUnlessEqual(getattr(n, field_name), value_de)
         self.failUnlessEqual(getattr(n, field_name_de), value_de)
         self.failUnlessEqual(getattr(n, field_name_en), value_en)
@@ -249,8 +243,8 @@ class ModeltranslationTestRule1(ModeltranslationTestBase):
         self.failUnlessEqual(getattr(n, field_name), value_en)
         self.failUnlessEqual(getattr(n, field_name_de), value_de)
         self.failUnlessEqual(getattr(n, field_name_en), value_en)
-        trans_real.activate('de')
-        self.failUnlessEqual(get_language(), 'de')
+        trans_real.activate("de")
+        self.failUnlessEqual(get_language(), "de")
         self.failUnlessEqual(getattr(n, field_name), value_de)
 
         if deactivate:
@@ -270,8 +264,8 @@ class ModeltranslationTestRule1(ModeltranslationTestBase):
                                      text_de=text_de, text_en=text_en)
         n.save()
 
-        # Language is set to 'de' at this point
-        self.failUnlessEqual(get_language(), 'de')
+        # Language is set to "de" at this point
+        self.failUnlessEqual(get_language(), "de")
         self.failUnlessEqual(n.title, title1_de)
         self.failUnlessEqual(n.title_de, title1_de)
         self.failUnlessEqual(n.title_en, title1_en)
@@ -296,8 +290,8 @@ class ModeltranslationTestRule1(ModeltranslationTestBase):
         self.failUnlessEqual(n.text, text_en)
         self.failUnlessEqual(n.text_de, text_de)
         self.failUnlessEqual(n.text_en, text_en)
-        trans_real.activate('de')
-        self.failUnlessEqual(get_language(), 'de')
+        trans_real.activate("de")
+        self.failUnlessEqual(get_language(), "de")
         self.failUnlessEqual(n.title, title1_de)
         self.failUnlessEqual(n.text, text_de)
 
@@ -313,6 +307,11 @@ class ModeltranslationTestRule1(ModeltranslationTestBase):
                          value_de='django-modeltranslation@googlecode.de',
                          value_en='django-modeltranslation@googlecode.com')
 
+    def test_rule1_xml_field(self):
+        self._test_field(field_name='xml',\
+        value_de='<?xml version="1.0" encoding="UTF-8" ?><foo>bar</foo>',
+        value_en='<?xml version="1.0" encoding="UTF-8" ?><foo>baz</foo>')
+
 
 class ModeltranslationTestRule2(ModeltranslationTestBase):
     """
@@ -323,10 +322,12 @@ class ModeltranslationTestRule2(ModeltranslationTestBase):
                     deactivate=True):
         field_name_de = '%s_de' % field_name
         field_name_en = '%s_en' % field_name
-        params = {'title_de': 'title de', 'title_en': 'title en',
-                  field_name_de: value1_de, field_name_en: value1_en}
+        params = {'title_de': 'title de',
+                  'title_en': 'title en'}
+        params[field_name_de] = value1_de
+        params[field_name_en] = value1_en
 
-        self.failUnlessEqual(get_language(), 'de')
+        self.failUnlessEqual(get_language(), "de")
         n = TestModel.objects.create(**params)
         self.failUnlessEqual(getattr(n, field_name), value1_de)
         self.failUnlessEqual(getattr(n, field_name_de), value1_de)
@@ -355,7 +356,7 @@ class ModeltranslationTestRule2(ModeltranslationTestBase):
         Basic CharField/TextField test.
         Could as well call _test_field, just kept for reference.
         """
-        self.failUnlessEqual(get_language(), 'de')
+        self.failUnlessEqual(get_language(), "de")
         title1_de = "title de"
         title1_en = "title en"
         n = TestModel.objects.create(title_de=title1_de, title_en=title1_en)
@@ -396,6 +397,13 @@ class ModeltranslationTestRule2(ModeltranslationTestBase):
                          value2='django-modeltranslation@googlecode.at',
                          value3='django-modeltranslation@googlecode.co.uk')
 
+    def test_rule2_xml_field(self):
+        self._test_field(field_name='xml',\
+        value1_de='<?xml version="1.0" encoding="UTF-8" ?><foo>bar</foo>',
+        value1_en='<?xml version="1.0" encoding="UTF-8" ?><foo>baz</foo>',
+        value2='<?xml version="1.0" encoding="UTF-8" ?><bar>foo</bar>',
+        value3='<?xml version="1.0" encoding="UTF-8" ?><baz>foo</baz>')
+
 
 class ModeltranslationTestRule3(ModeltranslationTestBase):
     """
@@ -407,12 +415,14 @@ class ModeltranslationTestRule3(ModeltranslationTestBase):
                     deactivate=True):
         field_name_de = '%s_de' % field_name
         field_name_en = '%s_en' % field_name
-        params = {'title_de': 'title de', 'title_en': 'title en',
-                  field_name_de: value1_de, field_name_en: value1_en}
+        params = {'title_de': 'title de',
+                  'title_en': 'title en'}
+        params[field_name_de] = value1_de
+        params[field_name_en] = value1_en
 
         n = TestModel.objects.create(**params)
 
-        self.failUnlessEqual(get_language(), 'de')
+        self.failUnlessEqual(get_language(), "de")
         self.failUnlessEqual(getattr(n, field_name), value1_de)
         self.failUnlessEqual(getattr(n, field_name_de), value1_de)
         self.failUnlessEqual(getattr(n, field_name_en), value1_en)
@@ -440,23 +450,14 @@ class ModeltranslationTestRule3(ModeltranslationTestBase):
         title1_de = "title de"
         title1_en = "title en"
         n = TestModel.objects.create(title_de=title1_de, title_en=title1_en)
-        self.failUnlessEqual(get_language(), 'de')
-        self.failUnlessEqual(DEFAULT_LANGUAGE, 'de')
+        self.failUnlessEqual(get_language(), "de")
         self.failUnlessEqual(n.title, title1_de)
         self.failUnlessEqual(n.title_de, title1_de)
         self.failUnlessEqual(n.title_en, title1_en)
 
         n.title_de = "Neuer Titel"
         n.save()
-        # We expect that the original field holds the same value as the german
-        # one (german is the default language).
         self.failUnlessEqual(n.title, n.title_de)
-
-        # Fetch the updated object and verify all fields
-        updated_obj = TestModel.objects.get(id=n.id)
-        self.failUnlessEqual(updated_obj.title, 'Neuer Titel')
-        self.failUnlessEqual(updated_obj.title_de, 'Neuer Titel')
-        self.failUnlessEqual(updated_obj.title_en, 'title en')
 
         # Now switch to "en"
         trans_real.activate("en")
@@ -464,21 +465,7 @@ class ModeltranslationTestRule3(ModeltranslationTestBase):
         n.title_en = "New title"
         # the n.title field is not updated before the instance is saved
         n.save()
-        # We expect that the original field has *not* been changed as german
-        # is the default language and we only changed the value of the english
-        # field.
-        # FIXME: Demonstrates a wrong behaviour of save when the current
-        # language is different than the default language. In this case the
-        # original field is set to value of the current language's field.
-        # See issue 33 for details.
-        self.failUnlessEqual(n.title, n.title_de)
-
-        # Fetch the updated object and verify all fields
-        updated_obj = TestModel.objects.get(id=n.id)
-        self.failUnlessEqual(updated_obj.title, 'Neuer Titel')
-        self.failUnlessEqual(updated_obj.title_de, 'Neuer Titel')
-        self.failUnlessEqual(updated_obj.title_en, 'New title')
-
+        self.failUnlessEqual(n.title, n.title_en)
         trans_real.deactivate()
 
     def test_rule3_url_field(self):
@@ -495,6 +482,13 @@ class ModeltranslationTestRule3(ModeltranslationTestBase):
                          value2='django-modeltranslation@googlecode.at',
                          value3='django-modeltranslation@googlecode.co.uk')
 
+    def test_rule3_xml_field(self):
+        self._test_field(field_name='xml',\
+        value1_de='<?xml version="1.0" encoding="UTF-8" ?><foo>bar</foo>',
+        value1_en='<?xml version="1.0" encoding="UTF-8" ?><foo>baz</foo>',
+        value2='<?xml version="1.0" encoding="UTF-8" ?><bar>foo</bar>',
+        value3='<?xml version="1.0" encoding="UTF-8" ?><baz>foo</baz>')
+
 
 class ModeltranslationTestRule4(ModeltranslationTestBase):
     """
@@ -506,8 +500,10 @@ class ModeltranslationTestRule4(ModeltranslationTestBase):
                     value2_en, value3, deactivate=True):
         field_name_de = '%s_de' % field_name
         field_name_en = '%s_en' % field_name
-        params = {'title_de': 'title de', 'title_en': 'title en',
-                  field_name_de: value1_de, field_name_en: value1_en}
+        params = {'title_de': 'title de',
+                  'title_en': 'title en'}
+        params[field_name_de] = value1_de
+        params[field_name_en] = value1_en
 
         n = TestModel.objects.create(**params)
 
@@ -537,7 +533,7 @@ class ModeltranslationTestRule4(ModeltranslationTestBase):
         Basic CharField/TextField test.
         Could as well call _test_field, just kept for reference.
         """
-        self.failUnlessEqual(get_language(), 'de')
+        self.failUnlessEqual(get_language(), "de")
         title1_de = "title de"
         title1_en = "title en"
         n = TestModel.objects.create(title_de=title1_de, title_en=title1_en)
@@ -578,6 +574,14 @@ class ModeltranslationTestRule4(ModeltranslationTestBase):
                          value2_en='django-modeltranslation@googlecode.co.uk',
                          value3='django-modeltranslation@googlecode.net')
 
+    def test_rule4_xml_field(self):
+        self._test_field(field_name='xml',\
+        value1_de='<?xml version="1.0" encoding="UTF-8" ?><foo>bar</foo>',
+        value1_en='<?xml version="1.0" encoding="UTF-8" ?><foo>baz</foo>',
+        value2_de='<?xml version="1.0" encoding="UTF-8" ?><bar>foo</bar>',
+        value2_en='<?xml version="1.0" encoding="UTF-8" ?><baz>foo</baz>',
+        value3='<?xml version="1.0" encoding="UTF-8" ?><baz>bar</baz>')
+
 
 class ModeltranslationTestModelValidation(ModeltranslationTestBase):
     """
@@ -589,8 +593,9 @@ class ModeltranslationTestModelValidation(ModeltranslationTestBase):
         Generic model field validation test.
         """
         field_name_de = '%s_de' % field_name
-        params = {'title_de': 'title de', 'title_en': 'title en',
-                  field_name: invalid_value}
+        params = {'title_de': 'title de',
+                  'title_en': 'title en'}
+        params[field_name] = invalid_value
 
         has_error_key = False
         # Create an object with an invalid url
@@ -607,8 +612,8 @@ class ModeltranslationTestModelValidation(ModeltranslationTestBase):
         self.assertTrue(has_error_key)
 
         # Check the translation field
-        # Language is set to 'de' at this point
-        self.failUnlessEqual(get_language(), 'de')
+        # Language is set to "de" at this point
+        self.failUnlessEqual(get_language(), "de")
         # Set translation field to a valid url
         #n.url_de = 'http://code.google.com/p/django-modeltranslation/'
         setattr(n, field_name_de, valid_value)
@@ -653,8 +658,8 @@ class ModeltranslationTestModelValidation(ModeltranslationTestBase):
         n.save()
 
         # Check the translation field
-        # Language is set to 'de' at this point
-        self.failUnlessEqual(get_language(), 'de')
+        # Language is set to "de" at this point
+        self.failUnlessEqual(get_language(), "de")
         # Set translation field to a valid title
         n.title_de = 'Title'
         has_error_key = False
@@ -694,8 +699,8 @@ class ModeltranslationTestModelValidation(ModeltranslationTestBase):
         #self.assertTrue(has_error_key)
 
         ## Check the translation field
-        ## Language is set to 'de' at this point
-        #self.failUnlessEqual(get_language(), 'de')
+        ## Language is set to "de" at this point
+        #self.failUnlessEqual(get_language(), "de")
         ## Set translation field to a valid url
         #n.url_de = 'http://code.google.com/p/django-modeltranslation/'
         #has_error_key = False
@@ -718,17 +723,16 @@ class ModeltranslationTestModelValidation(ModeltranslationTestBase):
                 #has_error_key = True
         #self.assertTrue(has_error_key)
 
-        self._test_model_validation(
-            field_name='url',
-            invalid_value='foo en',
-            valid_value='http://code.google.com/p/django-modeltranslation/',
-            invalid_value_de='foo de')
+        self._test_model_validation(field_name='url',\
+        invalid_value='foo en',
+        valid_value='http://code.google.com/p/django-modeltranslation/',
+        invalid_value_de='foo de')
 
     def test_model_validation_email_field(self):
-        self._test_model_validation(
-            field_name='email', invalid_value='foo en',
-            valid_value='django-modeltranslation@googlecode.com',
-            invalid_value_de='foo de')
+        self._test_model_validation(field_name='email',\
+        invalid_value='foo en',
+        valid_value='django-modeltranslation@googlecode.com',
+        invalid_value_de='foo de')
 
 
 class TestModelMultitableA(models.Model):
@@ -830,190 +834,3 @@ class ModeltranslationInheritanceTest(ModeltranslationTestBase):
         self.failUnless('titleb_de' in field_names_d)
         self.failUnless('titleb_en' in field_names_d)
         self.failUnless('titled' in field_names_d)
-
-
-class TranslationAdminTest(ModeltranslationTestBase):
-    def setUp(self):
-        trans_real.activate('de')
-        self.test_obj = TestModel.objects.create(
-            title='Testtitle', text='Testtext')
-        self.site = AdminSite()
-
-    def tearDown(self):
-        trans_real.deactivate()
-        self.test_obj.delete()
-
-    def test_default_fields(self):
-        class TestModelAdmin(TranslationAdmin):
-            pass
-
-        ma = TestModelAdmin(TestModel, self.site)
-        self.assertEqual(ma.get_form(request).base_fields.keys(),
-            ['title_de', 'title_en', 'text_de', 'text_en',
-             'url_de', 'url_en', 'email_de', 'email_en'])
-
-    def test_default_fieldsets(self):
-        class TestModelAdmin(TranslationAdmin):
-            pass
-
-        ma = TestModelAdmin(TestModel, self.site)
-        # We expect that the original field is excluded and only the
-        # translation fields are included in fields
-        fields = ['title_de', 'title_en', 'text_de', 'text_en',
-                  'url_de', 'url_en', 'email_de', 'email_en']
-        self.assertEqual(ma.get_fieldsets(request),
-            [(None, {'fields': fields})])
-        self.assertEqual(ma.get_fieldsets(request, self.test_obj),
-            [(None, {'fields': fields})])
-
-    def test_field_arguments(self):
-        class TestModelAdmin(TranslationAdmin):
-            fields = ['title']
-
-        ma = TestModelAdmin(TestModel, self.site)
-        fields = ['title_de', 'title_en']
-        self.assertEqual(ma.get_form(request).base_fields.keys(), fields)
-        self.assertEqual(ma.get_form(request,
-            self.test_obj).base_fields.keys(), fields)
-
-    def test_field_arguments_restricted_on_form(self):
-        # Using `fields`.
-        class TestModelAdmin(TranslationAdmin):
-            fields = ['title']
-
-        ma = TestModelAdmin(TestModel, self.site)
-        fields = ['title_de', 'title_en']
-        self.assertEqual(ma.get_form(request).base_fields.keys(), fields)
-        self.assertEqual(ma.get_form(request,
-            self.test_obj).base_fields.keys(), fields)
-
-        # Using `fieldsets`.
-        class TestModelAdmin(TranslationAdmin):
-            fieldsets = [(None, {'fields': ['title']})]
-
-        ma = TestModelAdmin(TestModel, self.site)
-        self.assertEqual(ma.get_form(request).base_fields.keys(), fields)
-        self.assertEqual(ma.get_form(request,
-            self.test_obj).base_fields.keys(), fields)
-
-        # Using `exclude`.
-        class TestModelAdmin(TranslationAdmin):
-            exclude = ['url', 'email']
-
-        ma = TestModelAdmin(TestModel, self.site)
-        fields = ['title_de', 'title_en', 'text_de', 'text_en']
-        self.assertEqual(ma.get_form(request).base_fields.keys(),
-            fields)
-
-        # You can also pass a tuple to `exclude`.
-        class TestModelAdmin(TranslationAdmin):
-            exclude = ('url', 'email')
-
-        ma = TestModelAdmin(TestModel, self.site)
-        self.assertEqual(ma.get_form(request).base_fields.keys(),
-            fields)
-        self.assertEqual(ma.get_form(request,
-            self.test_obj).base_fields.keys(), fields)
-
-        # Using `fields` and `exclude`.
-        class TestModelAdmin(TranslationAdmin):
-            fields = ['title', 'url']
-            exclude = ['url']
-
-        ma = TestModelAdmin(TestModel, self.site)
-        self.assertEqual(ma.get_form(request).base_fields.keys(),
-            ['title_de', 'title_en'])
-
-    def test_field_arguments_restricted_on_custom_form(self):
-        # Using `fields`.
-        class TestModelForm(forms.ModelForm):
-            class Meta:
-                model = TestModel
-                fields = ['url', 'email']
-
-        class TestModelAdmin(TranslationAdmin):
-            form = TestModelForm
-
-        ma = TestModelAdmin(TestModel, self.site)
-        fields = ['url_de', 'url_en', 'email_de', 'email_en']
-        self.assertEqual(ma.get_form(request).base_fields.keys(),
-            fields)
-        self.assertEqual(ma.get_form(request,
-            self.test_obj).base_fields.keys(), fields)
-
-        # Using `exclude`.
-        class TestModelForm(forms.ModelForm):
-            class Meta:
-                model = TestModel
-                exclude = ['url', 'email']
-
-        class TestModelAdmin(TranslationAdmin):
-            form = TestModelForm
-
-        ma = TestModelAdmin(TestModel, self.site)
-        fields = ['title_de', 'title_en', 'text_de', 'text_en']
-        self.assertEqual(ma.get_form(request).base_fields.keys(),
-            fields)
-        self.assertEqual(ma.get_form(request,
-            self.test_obj).base_fields.keys(), fields)
-
-        # If both, the custom form an the ModelAdmin define an `exclude`
-        # option, the ModelAdmin wins. This is Django behaviour.
-        class TestModelAdmin(TranslationAdmin):
-            form = TestModelForm
-            exclude = ['url']
-
-        ma = TestModelAdmin(TestModel, self.site)
-        fields = ['title_de', 'title_en', 'text_de', 'text_en', 'email_de',
-                  'email_en']
-        self.assertEqual(ma.get_form(request).base_fields.keys(),
-            fields)
-        self.assertEqual(ma.get_form(request,
-            self.test_obj).base_fields.keys(), fields)
-
-        # Same for `fields`.
-        class TestModelForm(forms.ModelForm):
-            class Meta:
-                model = TestModel
-                fields = ['text', 'title']
-
-        class TestModelAdmin(TranslationAdmin):
-            form = TestModelForm
-            fields = ['email']
-
-        ma = TestModelAdmin(TestModel, self.site)
-        fields = ['email_de', 'email_en']
-        self.assertEqual(ma.get_form(request).base_fields.keys(),
-            fields)
-        self.assertEqual(ma.get_form(request,
-            self.test_obj).base_fields.keys(), fields)
-
-    def test_inline_fieldsets(self):
-        class DataModel(models.Model):
-            data = models.TextField(blank=True, null=True)
-
-        class DataInline(TranslationStackedInline):
-            model = DataModel
-            fieldsets = [
-                ('Test', {'fields': ('data',)})
-            ]
-
-        class TestModelAdmin(TranslationAdmin):
-            exclude = ('title', 'text',)
-            inlines = [DataInline]
-
-        class DataTranslationOptions(translator.TranslationOptions):
-            fields = ('data',)
-
-        translator.translator.register(DataModel,
-                                       DataTranslationOptions)
-        ma = TestModelAdmin(TestModel, self.site)
-
-        fieldsets = [('Test', {'fields': ['data_de', 'data_en']})]
-        self.assertEqual(
-            ma.get_inline_instances(request)[0].get_fieldsets(request),
-            fieldsets)
-        self.assertEqual(
-            ma.get_inline_instances(request)[0].get_fieldsets(
-                request, self.test_obj),
-            fieldsets)

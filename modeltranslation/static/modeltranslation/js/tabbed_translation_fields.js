@@ -4,13 +4,6 @@ var google, django, gettext;
 
 (function () {
     var jQuery = jQuery || $ || django.jQuery;
-
-    /* Add a new selector to jQuery that excludes parent items which match a
-       given selector */
-    jQuery.expr[':'].parents = function(a, i, m) {
-        return jQuery(a).parents(m[3]).length < 1;
-    };
-
     jQuery(function ($) {
         function getGroupedTranslationFields() {
             /** Returns a grouped set of all text based model translation fields.
@@ -28,9 +21,7 @@ var google, django, gettext;
              *   }
              * }
              */
-            var translation_fields = $('.modeltranslation').filter(
-                'input[type=text]:visible, textarea:visible').filter(
-                ':parents(.tabular)'), // exclude tabular inlines
+            var translation_fields = $('.modeltranslation').filter('input[type=text]:visible, textarea:visible'),
               grouped_translations = {};
 
             translation_fields.each(function (i, el) {
