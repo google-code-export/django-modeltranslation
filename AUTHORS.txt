@@ -1,13 +1,2 @@
-AUTHORS
-=======
-Peter Eschler <peschler@gmail.com> (http://www.nmy.de)
-Dirk Eschler <eschler@gmail.com> (http://www.nmy.de)
-
-CONTRIBUTORS
-============
-Carl J. Meyer
-Jaap Roes
-Bojan Mihelac
-Sébastien Fievet
-Jacek Tomaszewski
-Bruno Tavares
+Peter Eschler <peschler@gmail.com> (http://www.pyjax.net)
+Dirk Eschler <eschler@gmail.com>
