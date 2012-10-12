@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 from django.conf import settings
+from django.db import models
+from django.db.models import signals
 from django.db.models.base import ModelBase
+from django.utils.functional import curry
 
 from modeltranslation.fields import (TranslationField,
                                      TranslationFieldDescriptor,
@@ -45,19 +48,20 @@ def add_localized_fields(model):
         localized_fields[field_name] = list()
         for l in settings.LANGUAGES:
             # Create a dynamic translation field
-            translation_field = create_translation_field(
-                model=model, field_name=field_name, lang=l[0])
+            translation_field = create_translation_field(model=model,\
+                                field_name=field_name, lang=l[0])
             # Construct the name for the localized field
             localized_field_name = build_localized_fieldname(field_name, l[0])
             # Check if the model already has a field by that name
             if hasattr(model, localized_field_name):
-                raise ValueError(
-                    "Error adding translation field. Model '%s' already "
-                    "contains a field named '%s'." % (
-                        instance.__class__.__name__, localized_field_name))
+                raise ValueError("Error adding translation field. Model '%s' "
+                                 "already contains a field named '%s'." %\
+                                 (instance.__class__.__name__,
+                                  localized_field_name))
             # This approach implements the translation fields as full valid
             # django model fields and therefore adds them via add_to_class
-            model.add_to_class(localized_field_name, translation_field)
+            localized_field = model.add_to_class(localized_field_name,
+                                                 translation_field)
             localized_fields[field_name].append(localized_field_name)
     return localized_fields
 
@@ -78,7 +82,6 @@ def add_localized_fields(model):
     #for field_name in trans_opts.fields:
         #setattr(sender, field_name, TranslationFieldDescriptor(field_name))
 
-
 def delete_cache_fields(model):
     opts = model._meta
     try:
@@ -93,7 +96,6 @@ def delete_cache_fields(model):
         del opts._name_map
     except AttributeError:
         pass
-
 
 class Translator(object):
     """
@@ -113,6 +115,14 @@ class Translator(object):
         If a model is already registered for translation, this will raise
         AlreadyRegistered.
         """
+        # Don't import the humongous validation code unless required
+        if translation_opts and settings.DEBUG:
+            from django.contrib.admin.validation import validate
+        else:
+            validate = lambda model, adminclass: None
+
+        #if not translation_opts:
+            #translation_opts = TranslationOptions
         if isinstance(model_or_iterable, ModelBase):
             model_or_iterable = [model_or_iterable]
 
@@ -128,12 +138,19 @@ class Translator(object):
                 # the created class appears to "live" in the wrong place,
                 # which causes issues later on.
                 options['__module__'] = __name__
-                translation_opts = type(
-                    "%sTranslationOptions" % model.__name__,
-                    (translation_opts,), options)
+                translation_opts = type("%sAdmin" % model.__name__,
+                                        (translation_opts,), options)
+
+            # Validate (which might be a no-op)
+            #validate(translation_opts, model)
 
             # Store the translation class associated to the model
             self._registry[model] = translation_opts
+
+            # Get the content type of the original model and store it on the
+            # translation options for faster lookup later on.
+            #translation_opts.model_ct = \
+                #ContentType.objects.get_for_model(model)
 
             # Add the localized fields to the model and store the names of
             # these fields in the model's translation options for faster lookup
@@ -143,7 +160,7 @@ class Translator(object):
             # Create a reverse dict mapping the localized_fieldnames to the
             # original fieldname
             rev_dict = dict()
-            for orig_name, loc_names in \
+            for orig_name, loc_names in\
                 translation_opts.localized_fieldnames.items():
                 for ln in loc_names:
                     rev_dict[ln] = orig_name
@@ -153,18 +170,18 @@ class Translator(object):
             for related_obj in model._meta.get_all_related_objects():
                 delete_cache_fields(related_obj.model)
 
-        model_fallback_values = getattr(
-            translation_opts, 'fallback_values', None)
+        model_fallback_values =\
+        getattr(translation_opts, 'fallback_values', None)
         for field_name in translation_opts.fields:
             if model_fallback_values is None:
                 field_fallback_value = None
             elif isinstance(model_fallback_values, dict):
-                field_fallback_value = model_fallback_values.get(
-                    field_name, None)
+                field_fallback_value =\
+                model_fallback_values.get(field_name, None)
             else:
                 field_fallback_value = model_fallback_values
-            setattr(model, field_name, TranslationFieldDescriptor(
-                field_name, fallback_value=field_fallback_value))
+            setattr(model, field_name, TranslationFieldDescriptor(field_name,\
+                    fallback_value=field_fallback_value))
 
         #signals.pre_init.connect(translated_model_initializing, sender=model,
                                  #weak=False)
@@ -202,20 +219,17 @@ class Translator(object):
                 if parent in self._registry:
                     trans_opts = self._registry[parent]
                     fields.update(trans_opts.fields)
-                    localized_fieldnames.update(
-                        trans_opts.localized_fieldnames)
-                    localized_fieldnames_rev.update(
-                        trans_opts.localized_fieldnames_rev)
+                    localized_fieldnames.update(trans_opts.localized_fieldnames)
+                    localized_fieldnames_rev.update(trans_opts.localized_fieldnames_rev)
             if fields and localized_fieldnames and localized_fieldnames_rev:
                 options = {
                     '__module__': __name__,
                     'fields': tuple(fields),
                     'localized_fieldnames': localized_fieldnames,
-                    'localized_fieldnames_rev': localized_fieldnames_rev
+                    'localized_fieldnames_rev': localized_fieldnames_rev,
                 }
-                translation_opts = type(
-                    "%sTranslation" % model.__name__,
-                    (TranslationOptions,), options)
+                translation_opts = type("%sTranslation" % model.__name__,
+                                        (TranslationOptions,), options)
                 # delete_cache_fields(model)
                 return translation_opts
             raise NotRegistered('The model "%s" is not registered for '
